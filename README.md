@@ -14,7 +14,7 @@ But because I use boblight-v4l I only get a white light with this approach (bobl
 You need socat to map the devices:
 
 ```
-# socat -d -d pty,raw,echo=0 pty,raw,echo=0
+# socat -d -d pty,raw,echo=0,link=/tmp/pts_out pty,raw,echo=0,link=/tmp/pts_in
 2016/01/18 11:00:32 socat[2864] N PTY is /dev/pts/4
 2016/01/18 11:00:32 socat[2864] N PTY is /dev/pts/5
 2016/01/18 11:00:32 socat[2864] N starting data transfer loop with FDs [5,5] and [7,7]
@@ -29,7 +29,8 @@ Configure /etc/boblight.conf and set the output device:
 
 [device]
 name        WifiLed
-output      /dev/pts/5
+#output      /dev/pts/5
+output      /dev/pts_in
 channels    3
 type   momo
 prefix FF
