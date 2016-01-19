@@ -2,12 +2,12 @@ import colorsys
 import sys
 import os
 import socket
-
+import milight
 logger=None
 
 CONTROLLER_HOST = "192.68.111.201"
 CONTROLLER_PORT = 8899
-DEVICE = '/dev/pts/4'
+DEVICE = '/tmp/pts_out'
 
 # Command:
 # socat -d -d pty,raw,echo=0 pty,raw,echo=0
@@ -30,7 +30,7 @@ class Logger:
 
   def writeLine(self,msg):
     if(self.logfile!=None):
-      self.logfile.write(str(msg))
+      self.logfile.write(str(msg) +"\n")
       self.logfile.flush()
 
 class boblightMilightConnector:
@@ -39,16 +39,20 @@ class boblightMilightConnector:
 
   def readInputStream(self):
     #IP und Port des Controller (Bridge) oder ggf. auch ein LD382 (Magic UFO)
-    milight=milightController(CONTROLLER_HOST, CONTROLLER_PORT)
+    #milight=milightController(CONTROLLER_HOST, CONTROLLER_PORT)
+    controller = milight.MiLight({'host': '192.168.111.201', 'port': 8899}, wait_duration=0)
+    light = milight.LightBulb(['rgb'])
+    controller.send(light.on(1))
+    controller.send(light.color(milight.color_from_rgb(0xff, 0xff, 0), 1)) 
 
     dev = os.open(DEVICE, os.O_RDWR)
     while True:
-      data = os.read(dev,4)
+      data = os.read(dev,10)
       # first ff is header
       # Data: 0xff, 0x1d, 0x18, 0xfd
       res = [ord(n) for n in data]
       if res[0] != 0xff:
-          loggger.writeline('Header (ff) missing in data %s - ignore' % (res, ))
+          logger.writeLine('Header (ff) missing in data %s - ignore' % (res, ))
           continue
       #input = sys.stdin.readline()
       logger.writeLine("Input: %s" %  (res, ))
@@ -56,11 +60,12 @@ class boblightMilightConnector:
           # all whit .. do nothing
           pass
       else:
-        r = float(res[0]) / 255
-        g = float(res[1]) / 255
-        b = float(res[2]) / 255
-        milight.setRGB(r,g,b)
-
+        r = (res[0]) #/ 255
+        g = (res[1]) #/ 255
+        b = (res[2]) #/ 255
+        #milight.setRGB(r,g,b)
+        controller.send(light.color(milight.color_from_rgb(r, g, b), 1))
+ 
 class milightController:
   ip=None
   port=None
