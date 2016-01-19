@@ -42,7 +42,7 @@ class Logger:
 
 def Proxy:
     def __init__(self, host, port, readDevice, writeDevice, group=1, lightType='rgb', initColor=None, brightness=100):
-        self.milight = milight.MiLight({'host': host, 'port': port})
+        self.milight = milight.MiLight({'host': host, 'port': port}, wait_duration=0)
         self.light = milight.LightBulb([lightType])
         self.group = group
         self.initColor(initColor, brightness)
