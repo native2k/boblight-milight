@@ -26,18 +26,22 @@ class boblightMilightConnector:
     
   @classmethod
   def getData(cls, data, length, pos=0):
-      return [ord(n) for n in data[pos:pos + length]]
+      return [ord(n) for n in data[pos:(pos + length)]]
 
   def readInputStream(self):
     logger.info('start reading %s ' % (DEVICE, ))
     headerLen = len(HEADER)
     dataLen = len(GROUPS)
-    groups = [(n, headerLen + COUNT_COLOR + n * COUNT_COLOR) for n in GROUPS]
-    
+    groups = [(n, headerLen + ((i + 1) * COUNT_COLOR)) for i, n in enumerate(GROUPS)]
+    logger.debug('Groups: %s' % (groups, ))
+
     # open device
     dev = os.open(DEVICE, os.O_RDWR)
     while True:
       data = os.read(dev, headerLen + (dataLen + 1) * 3)
+      if logger.isEnabledFor(logging.debug):
+          logger.debug('MSG: %s' % ( self.getData(data, len(data)), ))
+
       # first is header
       # Data: 0xff, 0x1d, 0x18, 0xfd
       header = self.getData(data, headerLen)
@@ -46,8 +50,8 @@ class boblightMilightConnector:
           continue
       
       for group, dStart  in groups:
-        color = self.getData(data, dStart, COUNT_COLOR)
-        loger.debug("Color :%s " % (color, )) 
+        color = self.getData(data, COUNT_COLOR, dStart)
+        logger.debug("Color(group: %s): %s pos: %s" % (group, color, dStart)) 
         
         # if it is 000000 .. ignore
         if color == [0] * COUNT_COLOR:
@@ -58,7 +62,7 @@ class boblightMilightConnector:
 if __name__ == '__main__':
 
     logging.basicConfig(format='%(message)s')
-    logger.setLevel(10)
+    #logger.setLevel(10)
     
     mc = boblightMilightConnector()
     mc.readInputStream()
