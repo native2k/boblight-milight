@@ -8,7 +8,7 @@ from pprint import pformat
 logger = logging.getLogger('testmilight')
 
 
-CONTROLLER_HOST = "192.68.111.201"
+CONTROLLER_HOST = "192.168.111.201"
 CONTROLLER_PORT = 8899
 
 BRIGHTNESS = 10
@@ -33,9 +33,10 @@ class MilightControllerLib:
         if color:
             self.setColor(color)
 
-    def setColor(self, color):
+    def setColor(self, color, group=None):
         """ sets the color tuple """
-        r = self.controller.send(self.light.color(milight.color_from_rgb(*color), self.group))
+        group = group is None and self.group or group
+        r = self.controller.send(self.light.color(milight.color_from_rgb(*color), group))
         logger.debug('Set color to %s (group: %s): %s' % (color, self.group, r))
 
 
@@ -52,17 +53,18 @@ class MilightControllerSock:
         if initColor:
             self.setColor(initColor)
 
-    def setColor(self, color):
-        return self.setRGB(*[float(d) / 255 for d in color])
+    def setColor(self, color, group=None):
+        group = group is None and self.group or group
+        return self.setRGB(*[float(d) / 255 for d in color], group=group)
 
-    def setRGB(self, r, g, b):
+    def setRGB(self, r, g, b, group):
         logger.debug('R: %.3f G: %.3f B: %3.f' % (r, g, b))
         h, s, v = colorsys.rgb_to_hsv(float(r), float(g), float(b))
         logger.debug("H: " + str(h) + " S: " + str(s) + " v: " + str(v))
         if(s < 0.02):
             # Alle Lampen in den Weissen Modus versetzen (C2 Alle, C5 Group1, C7 Group2, C9 Group3, CB Group4)
             # MESSAGE1 = "\xC5\x00"
-            MESSAGE1 = self.GROUP_PREFIX[self.group] + "\x00"
+            MESSAGE1 = self.GROUP_PREFIX[group] + "\x00"
             if(h > 0.3333):
                 htmp = h - 0.3333
                 logger.debug("Vk1: " + str(htmp))
