@@ -4,6 +4,7 @@ import milight
 import argparse
 import logging
 from pprint import pformat
+from time import time, sleep
 
 logger = logging.getLogger('testmilight')
 
@@ -17,7 +18,7 @@ GROUP = 1
 
 class MilightControllerLib:
 
-    def __init__(self, host, port, group=1, lightType='rgb', initColor=None, brightness=100):
+    def __init__(self, host, port, group=1, lightType='rgbw', initColor=None, brightness=100):
         self.controller = milight.MiLight({'host': host, 'port': port}, wait_duration=0)
         self.light = milight.LightBulb([lightType])
         self.group = group
@@ -38,6 +39,130 @@ class MilightControllerLib:
         group = group is None and self.group or group
         r = self.controller.send(self.light.color(milight.color_from_rgb(*color), group))
         logger.debug('Set color to %s (group: %s): %s' % (color, self.group, r))
+
+
+class MilightControllerSelf:
+
+    CMD_SUFFIX = 0x55
+    USE_SUFFIX = True
+    # is a list because they are depending on group
+    # all, group 1, group2, group3, group4
+    CMD_ON = [0x41, 0x45, 0x47, 0x49, 0x4B]
+    CMD_OFF = [0x42, 0x46, 0x48, 0x4A, 0x4C]
+    CMD_WHITE = [0xC2, 0xC5, 0xC7, 0xC9, 0xCB]
+    CMD_NIGHT = [0xC1, 0XC6, 0xC8, 0xCA, 0xCC]
+
+    CMD_BRIGHTNESS = 0x4E
+    CMD_COLOR = 0x40
+
+    CMD_DISCO_ON = 0x4D
+    CMD_DISCO_SLOW = 0x43
+    CMD_DISCO_FAST = 0x44
+
+    light = milight.LightBulb(['rgbw'])
+
+    lastGroup = None
+    lastLightOnTime = None
+    lastLightOnCountdown = None
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+    def __init__(self, host, port, group, lightType='rgbw', initColor=None, brightness=100):
+        self.ip = host
+        self.port = int(port)
+        self.group = int(group)
+        self.brightness = 100
+        # self.resendOnSek = 30  # seconds
+        # self.resendOnCount = 1000  # cound
+        #self.test()
+
+    def _buildCmd(self, cmd, cmdArg=0x00):
+        """ just builds the final command """
+        res = [cmd, cmdArg]
+        if self.USE_SUFFIX:
+            return res + [self.CMD_SUFFIX]
+        return res
+
+    def _sendCmd(self, *cmd):
+        msg = self._buildCmd(*cmd)
+        msgBytes = ''.join([chr(c) for c in msg])
+        # print 'SEND MESSAGE: %s %s "%s" ' % ([hex(m) for m in msg], msg, msgBytes)
+        self.sock.sendto(msgBytes, (self.ip, self.port))
+
+    def _calcBrightness(self, brightness):
+        """ Calc percent value to hex 0x00-0xFF. """
+        if 0 <= int(brightness) <= 100:
+            return int(float(brightness) / 100 * 0xFF)
+        raise Exception('Brightness must be an integer betwenn 0 and 100')
+
+    def _calcColor(self, colorTuple):
+        """ calculates hex value for color from colortuple """
+        return milight.color_from_rgb(*colorTuple)
+
+    def _sendCmdColor(self, colorTuple):
+        return self._sendCmd(self.CMD_COLOR, self._calcColor(colorTuple))
+
+    def _sendCmdBrightness(self, brightness):
+        return self._sendCmd(self.CMD_BRIGHTNESS, self._calcBrightness(brightness))
+
+    def _sendCmdOn(self, group=0):
+        return self._sendCmd(self.CMD_ON[group])
+
+    def _sendCmdOff(self, group=0):
+        return self._sendCmd(self.CMD_OFF[group])
+
+    def lightOn(self, group=0):
+        self.lastGroup = group
+        # self.lastLightOnTime = time()
+        # self.lastLightOnCountdown = self.resendOnCount
+        return self._sendCmdOn(group)
+
+    def lightOff(self, group=0):
+        self.lastGroup = None
+        return self._sendCmdOff(group)
+
+    def _sendOnIfNecessary(self, group):
+        # self.lastLightOnCountdown -= 1
+        if self.group == self.lastGroup:  # and \
+                # self.lastLightOnCountdown > 0 and \
+                # time() - self.lastLightOnTime < self.resendOnSek:
+            return False
+        self.lightOn(group)
+        return True
+
+    def setColor(self, color, group):
+        self._sendOnIfNecessary(group)
+        return self._sendCmdColor(color)
+    setRGB = setColor
+
+    def setBrightness(self, brightness, group):
+        self._sendOnIfNecessary(group)
+        return self._sendCmdBrightness(brightness)
+
+    def test(self):
+        group = 1
+        sleeptime = 3
+        colors = (
+            (0xFF, 0, 0),
+            (0xFF, 0xFF, 0),
+            (0, 0xFF, 0xFF),
+            (0xFF, 0, 0xFF),
+            (0, 0, 0xFF),
+        )
+        brightness = (30, 50, 75, 100)
+        print "Light ON"
+        self.lightOn(group)
+        sleep(1)
+        # self.lightOn(group)
+        for b in brightness:
+            print "Send Brightness: %s" % (b, )
+            self.setBrightness(b, group)
+            sleep(sleeptime)
+            for c in colors:
+                print "Send Color: %s" % (c, )
+                self.setRGB(c, group)
+                sleep(sleeptime)
+        print "Light OFF"
+        self.lightOff(group)
 
 
 class MilightControllerSock:
@@ -121,7 +246,13 @@ def milightController(*args, **kwargs):
         kind = kwargs.get('kind', 'sock').lower()
         del(kwargs['kind'])
 
-    controller = (kind == 'sock') and MilightControllerSock or MilightControllerLib
+    if kind == 'sock':
+        controller = MilightControllerSock
+    if kind == 'self':
+        controller = MilightControllerSelf
+    else:
+        controller = MilightControllerLib
+
     logger.debug('Build Controller: %s' % controller)
     return controller(*args, **kwargs)
 
@@ -151,8 +282,8 @@ def main():
         '--debug', '-d', dest='debug', action='store_true',
         help='enable debug ')
     parser.add_argument(
-        '--lib', '-l', dest='lib', action='store_true',
-        help='use lib milight instead of self build')
+        '--lib', '-l', dest='lib', default='sock',
+        help='use lib milight instead of self build [sock, lib, self]')
 
     args = parser.parse_args()
     if args.debug:
@@ -165,7 +296,7 @@ def main():
     except Exception, e:
         logger.error('Unable to parse colorstring %s : %s' % (args.color, e))
 
-    kind = args.lib and 'lib' or 'sock'
+    kind = args.lib
 
     milightController(args.host, args.port, args.group, initColor=color, brightness=args.brightness, kind=kind)
 
