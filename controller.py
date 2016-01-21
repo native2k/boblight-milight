@@ -12,7 +12,7 @@ logger = logging.getLogger('testmilight')
 CONTROLLER_HOST = "192.168.111.201"
 CONTROLLER_PORT = 8899
 
-BRIGHTNESS = 10
+BRIGHTNESS = 100
 GROUP = 1
 
 
@@ -84,7 +84,8 @@ class MilightControllerSelf:
 
     def _sendCmd(self, *cmd):
         msg = self._buildCmd(*cmd)
-        msgBytes = ''.join([chr(c) for c in msg])
+        #print "MSG: %s" % msg
+        msgBytes = ''.join([chr(min(max(c, 0), 255)) for c in msg])
         # print 'SEND MESSAGE: %s %s "%s" ' % ([hex(m) for m in msg], msg, msgBytes)
         self.sock.sendto(msgBytes, (self.ip, self.port))
 

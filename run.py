@@ -10,13 +10,20 @@ CONTROLLER_PORT = 8899
 
 BRIGHTNESS = 100
 GROUP = 1
+#CONTROLLER_TYPE = 'lib'  # 'sock'
 CONTROLLER_TYPE = 'sock'
+CONTROLLER_TYPE = 'self'
+
+from time import time 
 
 HEADER = [0xff]
 GROUPS = [1]
 COUNT_COLOR = 3
 
 logger = logging.getLogger('milightRun')
+
+AMOUNT = -1  # no performance checking 
+#AMOUNT = 1000
 
 class boblightMilightConnector:
   def __init__(self):
@@ -37,11 +44,23 @@ class boblightMilightConnector:
 
     # open device
     dev = os.open(DEVICE, os.O_RDWR)
+
+    # do some performance checking 
+    if AMOUNT > 0:
+        start = time()
+    countn = AMOUNT
+
     while True:
       data = os.read(dev, headerLen + (dataLen + 1) * 3)
       if logger.isEnabledFor(logging.debug):
           logger.debug('MSG: %s' % ( self.getData(data, len(data)), ))
-
+      
+      if countn > 0:
+          countn -= 1
+      elif countn == 0:
+          print "%d loop took  %.3fsek" % (AMOUNT, time() - start)
+          countn = AMOUNT
+          start = time()
       # first is header
       # Data: 0xff, 0x1d, 0x18, 0xfd
       header = self.getData(data, headerLen)
