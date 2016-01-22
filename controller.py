@@ -12,7 +12,7 @@ logger = logging.getLogger('testmilight')
 CONTROLLER_HOST = "192.168.111.201"
 CONTROLLER_PORT = 8899
 
-BRIGHTNESS = 10
+BRIGHTNESS = 100
 GROUP = 1
 
 
@@ -84,7 +84,8 @@ class MilightControllerSelf:
 
     def _sendCmd(self, *cmd):
         msg = self._buildCmd(*cmd)
-        msgBytes = ''.join([chr(c) for c in msg])
+        #print "MSG: %s" % msg
+        msgBytes = ''.join([chr(min(max(c, 0), 255)) for c in msg])
         # print 'SEND MESSAGE: %s %s "%s" ' % ([hex(m) for m in msg], msg, msgBytes)
         self.sock.sendto(msgBytes, (self.ip, self.port))
 
@@ -98,8 +99,11 @@ class MilightControllerSelf:
         """ calculates hex value for color from colortuple """
         return milight.color_from_rgb(*colorTuple)
 
-    def _sendCmdColor(self, colorTuple):
-        return self._sendCmd(self.CMD_COLOR, self._calcColor(colorTuple))
+    def _sendCmdColor(self, colorTuple, smoother=None):
+        color = self._calcColor(colorTuple)
+        if smoother:
+            color = smoother.calc(color)
+        return self._sendCmd(self.CMD_COLOR, color)
 
     def _sendCmdBrightness(self, brightness):
         return self._sendCmd(self.CMD_BRIGHTNESS, self._calcBrightness(brightness))
@@ -129,9 +133,10 @@ class MilightControllerSelf:
         self.lightOn(group)
         return True
 
-    def setColor(self, color, group):
+    def setColor(self, color, group, smoother=None):
         self._sendOnIfNecessary(group)
-        return self._sendCmdColor(color)
+        return self._sendCmdColor(color, smoother=None)
+
     setRGB = setColor
 
     def setBrightness(self, brightness, group):
