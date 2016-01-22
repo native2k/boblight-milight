@@ -99,8 +99,11 @@ class MilightControllerSelf:
         """ calculates hex value for color from colortuple """
         return milight.color_from_rgb(*colorTuple)
 
-    def _sendCmdColor(self, colorTuple):
-        return self._sendCmd(self.CMD_COLOR, self._calcColor(colorTuple))
+    def _sendCmdColor(self, colorTuple, smoother=None):
+        color = self._calcColor(colorTuple)
+        if smoother:
+            color = smoother.calc(color)
+        return self._sendCmd(self.CMD_COLOR, color)
 
     def _sendCmdBrightness(self, brightness):
         return self._sendCmd(self.CMD_BRIGHTNESS, self._calcBrightness(brightness))
@@ -130,9 +133,10 @@ class MilightControllerSelf:
         self.lightOn(group)
         return True
 
-    def setColor(self, color, group):
+    def setColor(self, color, group, smoother=None):
         self._sendOnIfNecessary(group)
-        return self._sendCmdColor(color)
+        return self._sendCmdColor(color, smoother=None)
+
     setRGB = setColor
 
     def setBrightness(self, brightness, group):
