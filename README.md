@@ -4,21 +4,20 @@
 
 I use some miligt devices (mostly rgb strips) to have same ambiend light in my living room and also use an DIY ambilight on my tv (100 RGB LED) thanks to boblightd. 
 I specifically choose to use the milight controller because the have an open API and thanks to 
-[http://www.kodinerds.net](http://www.kodinerds.net/index.php/Thread/45134-Milight-mit-Boblight-und-XBMC-Kodi-erste-Versuche/#codeLine_3_105c23) it
-is possible to also connect them to boblight.
+[http://www.kodinerds.net](http://www.kodinerds.net/index.php/Thread/45134-Milight-mit-Boblight-und-XBMC-Kodi-erste-Versuche/#codeLine_3_105c23) I got inspired to connect them also to my existing ambilight sollution as second device.
 
-I changed his implentation a bit because the pipe solution worked good when it was the only device but in combination with my momo devices it was not that stable. 
+I had to changed his implentation a bit because the pipe solution worked good when it was the only device but in combination with my existing 100 light of the momo device it was not very stable. 
 
-Now it can read the momo format too from an linux device. So you also need socat the setup the devices than let boblight write into this device and currently a 
-python script (run.py) to read from this device and send the data to the milight controller.
+Now I have boblightd write to a linux device, just as it where a momo device (because this is such a simple format) and the a python script reads this data decodes it and send it to an milight bridge.
+To setup, you also need to install `socat` which should be available in all linux distributions.
 
-On my client (which is running boblight-v4l on an old cubieboard) it seems like the first light always gets only 0,0,0 values. So I configured the first light also send to the pts and just ignore in the python script.
+On my client (which is oblight-v4l on an old cubieboard) it seems like the first light always gets only 0,0,0 values. So I configured the first light also send to the pts and just ignore it in the python script.
 
 The milight API is quite simple and documentation is available at [http://www.limitlessled.com/dev/](http://www.limitlessled.com/dev/). Problem is when you change the color you schould send an ON command for the specific group
 first and shortly after the collor value but because the ON command is also used for pairing (in first 2sek when you turn on the controller/light) and we are sending colors quite often any devices in the house just connected to 
 power would probably be paired to our wlan bridge. So I don't send the ON command everytime, which is no problem as long as you have not any other light binded to the same bridge and turned on this devices manully. Then you will have the collor changing on this device because the bridge just gets the set color command. 
 
-So I would advice to use one bridge only for devices related to ambilight.
+So I would advice to use one seperate bridge only for devices related to ambilight.
 
 ## INSTALL
 
@@ -69,6 +68,7 @@ rgb            0000FF
 #adjust        0.63
 blacklevel    0.00
 
+# this one always gets only zeros as color value .. I have no idea why
 [light]
 name        WI1
 color        WIFIred     WifiLed 1
