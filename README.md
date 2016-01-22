@@ -14,6 +14,12 @@ python script (run.py) to read from this device and send the data to the milight
 
 On my client (which is running boblight-v4l on an old cubieboard) it seems like the first light always gets only 0,0,0 values. So I configured the first light also send to the pts and just ignore in the python script.
 
+The milight API is quite simple and documentation is available at [http://www.limitlessled.com/dev/](http://www.limitlessled.com/dev/). Problem is when you change the color you schould send an ON command for the specific group
+first and shortly after the collor value but because the ON command is also used for pairing (in first 2sek when you turn on the controller/light) and we are sending colors quite often any devices in the house just connected to 
+power would probably be paired to our wlan bridge. So I don't send the ON command everytime, which is no problem as long as you have not any other light binded to the same bridge and turned on this devices manully. Then you will have the collor changing on this device because the bridge just gets the set color command. 
+
+So I would advice to use one bridge only for devices related to ambilight.
+
 ## INSTALL
 
 You need socat to map the devices:
